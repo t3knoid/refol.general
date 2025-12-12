@@ -1,0 +1,37 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Editor backups and temp files
+*.swp
+*.swo
+*.tmp
+*~
+
+# Ansible local artifacts
+*.retry
+.vault_pass.txt
+.ansible/
+
+# Test run artifacts
+.pytest_cache/
+tests/__pycache__/
+
+# Logs and temporary files
+*.log
+*.bak
+
+# Collection build artifacts
+*.tar.gz
+*.zip
+.build/
+dist/

@@ -1,0 +1,18 @@
+- hosts: localhost
+  gather_facts: false
+  vars:
+    inventory_dir_root: "{{ './tests/inventory' | realpath }}"
+    roles_dir_root: "{{ './roles' | realpath }}"
+
+  tasks:
+    - name: Consolidate rproxy_setup_sites
+      refol.general.consolidate_variable:
+        inventory_dir: "{{ inventory_dir_root }}"
+        roles_dir: "{{ roles_dir_root }}"
+        target_var: rproxy_setup_sites
+        debug: true
+      register: result
+
+    - name: Show consolidated result
+      debug:
+        var: result
