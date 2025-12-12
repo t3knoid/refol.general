@@ -43,7 +43,7 @@ jobs:
           git push origin "v${{ steps.get_version.outputs.version }}"
 
       - name: Upload Release Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
           path: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
