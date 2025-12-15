@@ -7,8 +7,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -28,12 +31,16 @@ jobs:
         id: get_version
         run: |
           VERSION=$(python3 -c "import yaml; print(yaml.safe_load(open('galaxy.yml'))['version'])")
-          echo "Collection version is $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Ansible Collection
-        run: |
-          ansible-galaxy collection build
+        run: ansible-galaxy collection build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: collection
+          path: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
 
       - name: Create Git tag
         run: |
@@ -42,8 +49,23 @@ jobs:
           git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release v${{ steps.get_version.outputs.version }}"
           git push origin "v${{ steps.get_version.outputs.version }}"
 
-      - name: Upload Release Artifact
-        uses: actions/upload-artifact@v4
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          name: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
-          path: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
+          name: collection
+          path: ./dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          files: ./dist/**
+  
