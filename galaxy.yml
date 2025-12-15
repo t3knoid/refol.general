@@ -1,19 +1,33 @@
 namespace: refol
 name: general
-version: "0.0.1"
+version: "0.0.2"
 readme: README.md
+
 authors:
   - "Francis Refol"
+
 description: >
-  General-purpose Ansible collection including modules such as
-  `consolidate_variable` for merging list-type variables from multiple
-  inventories and recursively rendering Jinja2 expressions.
-license: [MIT]
+  General-purpose Ansible collection providing utility modules and Redmine
+  automation helpers. Includes modules such as `consolidate_variable` for
+  merging list-type variables across inventories, and `redmine_wiki_mirror`
+  for mirroring Redmine wiki content into a local Git repository.
+
+license:
+  - MIT
+
 tags:
   - ansible
   - general
   - inventory
   - variables
+  - redmine
+  - wiki
+  - git
+  - automation
+
 dependencies: {}
+
 repository: "https://github.com/t3knoid/refol.general"
 documentation: README.md
+issues: "https://github.com/t3knoid/refol.general/issues"
+homepage: "https://github.com/t3knoid/refol.general"
