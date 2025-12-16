@@ -9,6 +9,7 @@
         output_dir: "{{ playbook_dir }}/tmp_redmine_wiki"
         delete_stale: true
         filename_extension: md
+        rewrite_links: true
         debug: false
       register: mirror_result
 
