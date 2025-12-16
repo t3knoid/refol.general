@@ -85,6 +85,41 @@ def _filename_for_title(title: str, extension: str = "md") -> str:
     return _default_filename(title, extension)
 
 
+def _ensure_front_matter(content: str, page_title: str) -> str:
+    """Ensure the markdown content begins with a YAML front matter containing the page title.
+
+    The function will leave the content unchanged if it already starts with a YAML front
+    matter delimiter (`---`). Otherwise it will prepend a minimal front matter with a
+    `title` field derived from the page's main markdown title (or the supplied title
+    if no markdown heading is present).
+    """
+    if content is None:
+        content = ""
+
+    # If the file already contains front matter, assume it's intentional and do nothing.
+    if re.match(r"^\s*---", content):
+        return content
+
+    # Try to extract the first Markdown H1 ("# Title")
+    m = re.search(r"^\s*#\s+(.+)", content, flags=re.MULTILINE)
+    if m:
+        main_title = m.group(1).strip()
+    else:
+        # Fallback to Setext-style H1 (Title\n====)
+        m2 = re.search(r"^([^\n]+)\n=+\s*$", content, flags=re.MULTILINE)
+        if m2:
+            main_title = m2.group(1).strip()
+        else:
+            main_title = page_title or ""
+
+    # Escape double quotes in title for safe YAML quoting
+    safe_title = main_title.replace('"', '\\"')
+
+    front_matter = f"---\ntitle: \"{safe_title}\"\n---\n\n"
+
+    return front_matter + content.lstrip("\n")
+
+
 def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, str], extension: str = "md") -> str:
     """Rewrite known Redmine wiki links and wiki-style links to local filenames.
 
@@ -244,6 +279,8 @@ def mirror_redmine_wiki(
                 content = _rewrite_content(content, project, base, title_to_filename, extension=filename_extension)
             except Exception as e:
                 _debug(debug_enabled, log, f"Link rewrite failed for '{title}': {e}")
+        # Ensure the generated markdown has a YAML front matter with the page title.
+        final_content = _ensure_front_matter(content, title)
 
         fpath = outdir / filename
 
@@ -254,10 +291,10 @@ def mirror_redmine_wiki(
             except Exception:
                 old_content = None
 
-        if old_content != content:
+        if old_content != final_content:
             _debug(debug_enabled, log, f"Writing updated content to {fpath}")
             if not module.check_mode:
-                fpath.write_text(content, encoding="utf-8")
+                fpath.write_text(final_content, encoding="utf-8")
             changed = True
             synced_pages.append(str(fpath))
         else:
