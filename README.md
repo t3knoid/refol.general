@@ -104,6 +104,7 @@ inventory/
 | `roles_dir`     | no       | str  | Directory containing roles. Default is `roles`.                                                       |
 | `target_var`    | yes      | str  | Name of the variable to consolidate. Must be a list-type variable.                                    |
 | `debug`         | no       | bool | Enable debug output. Default `false`.                                                                 |
+| `rewrite_links` | no | bool | Rewrite Redmine wiki links and wiki-style links to local filenames. Default `false`. |
 
 ---
 
