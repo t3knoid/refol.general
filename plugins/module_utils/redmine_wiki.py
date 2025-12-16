@@ -59,6 +59,20 @@ def _default_filename(title: str, extension: str = "md") -> str:
     return f"{safe}.{extension}"
 
 
+def _normalize_title_key(title: str) -> str:
+    """Normalize a wiki title for robust mapping lookups.
+
+    Strips surrounding whitespace, replaces common non-standard hyphens
+    with normal hyphens, collapses repeated whitespace, and lowercases.
+    """
+    if title is None:
+        return ""
+    t = title.strip()
+    t = t.replace("\u2011", "-")
+    t = re.sub(r"\s+", " ", t)
+    return t.lower()
+
+
 def _filename_for_title(title: str, extension: str = "md") -> str:
     """Return the filename to write for a given wiki title.
 
@@ -71,11 +85,12 @@ def _filename_for_title(title: str, extension: str = "md") -> str:
     return _default_filename(title, extension)
 
 
-def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, str]) -> str:
+def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, str], extension: str = "md") -> str:
     """Rewrite known Redmine wiki links and wiki-style links to local filenames.
 
     - Rewrites absolute or relative Redmine wiki URLs to the mapped filename.
     - Rewrites wiki-style links [[Page]] or [[Page|Label]] to Markdown links.
+    - Rewrites bare Markdown links where the target is a wiki title.
     """
 
     # Replace full or site-relative Redmine wiki links
@@ -85,7 +100,13 @@ def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, s
     def _replace_full(m):
         enc = m.group(1)
         title = unquote(enc)
-        fname = mapping.get(title) or mapping.get(enc) or _default_filename(title)
+        fname = (
+            mapping.get(title)
+            or mapping.get(enc)
+            or mapping.get(_normalize_title_key(title))
+            or mapping.get(_normalize_title_key(enc))
+            or _default_filename(title, extension=extension)
+        )
         return fname
 
     content = pattern_full.sub(lambda m: _replace_full(m), content)
@@ -93,19 +114,65 @@ def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, s
     # Replace site-relative links: /projects/<project>/wiki/<title>
     pattern_rel = re.compile(r'/projects/' + re.escape(project) + r'/wiki/([^\)\s\'"\]]+)')
 
-    content = pattern_rel.sub(lambda m: mapping.get(unquote(m.group(1))) or mapping.get(m.group(1)) or _default_filename(unquote(m.group(1))), content)
+    def _replace_rel(m):
+        raw = m.group(1)
+        title = unquote(raw)
+        return (
+            mapping.get(title)
+            or mapping.get(raw)
+            or mapping.get(_normalize_title_key(title))
+            or mapping.get(_normalize_title_key(raw))
+            or _default_filename(title, extension=extension)
+        )
+
+    content = pattern_rel.sub(lambda m: _replace_rel(m), content)
 
     # Rewrite wiki-style links [[Title]] or [[Title|Label]]
     wiki_link_re = re.compile(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 
-    def _wiki_link_replace(m):
-        title = m.group(1).strip()
-        label = m.group(2) or title
-        fname = mapping.get(title) or mapping.get(quote(title, safe='')) or _default_filename(title)
+    # Rewrite Markdown links where the target is a bare wiki title,
+    # e.g. [Label](Proxmox) -> [Label](proxmox.md)
+    md_link_re = re.compile(r'(?<!\!)\[([^\]]+)\]\(([^)]+)\)')
+
+    def _md_link_replace(m):
+        label = m.group(1)
+        target = m.group(2).strip()
+        # Skip external, absolute, anchors, mailto, or already-file targets
+        if re.match(r'^(?:https?:)?//', target) or target.startswith('/') or target.startswith('#') or ':' in target or '.' in target:
+            return m.group(0)
+
+        fname = (
+            mapping.get(target)
+            or mapping.get(_normalize_title_key(target))
+            or mapping.get(quote(target, safe=""))
+            or None
+        )
+        if not fname:
+            fname = _default_filename(target, extension=extension)
+
+        if not fname.lower().startswith(f"readme.{extension}"):
+            fname = fname.lower()
+
         return f"[{label}]({fname})"
 
     # We need quote here for lookup; import inside to avoid unused if function not used
     from urllib.parse import quote
+
+    # First rewrite bare Markdown links, then wiki-style links
+    content = md_link_re.sub(_md_link_replace, content)
+
+    def _wiki_link_replace(m):
+        title = m.group(1).strip()
+        label = m.group(2) or title
+        fname = (
+            mapping.get(title)
+            or mapping.get(_normalize_title_key(title))
+            or mapping.get(quote(title, safe=''))
+            or _default_filename(title, extension=extension)
+        )
+        if not fname.lower().startswith(f"readme.{extension}"):
+            fname = fname.lower()
+        return f"[{label}]({fname})"
 
     content = wiki_link_re.sub(_wiki_link_replace, content)
 
@@ -141,7 +208,9 @@ def mirror_redmine_wiki(
         t = entry.get("title")
         if not t:
             continue
-        title_to_filename[t] = _filename_for_title(t, extension=filename_extension)
+        fname = _filename_for_title(t, extension=filename_extension)
+        title_to_filename[t] = fname
+        title_to_filename[_normalize_title_key(t)] = fname
 
     outdir = Path(output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -172,7 +241,7 @@ def mirror_redmine_wiki(
 
         if rewrite_links:
             try:
-                content = _rewrite_content(content, project, base, title_to_filename)
+                content = _rewrite_content(content, project, base, title_to_filename, extension=filename_extension)
             except Exception as e:
                 _debug(debug_enabled, log, f"Link rewrite failed for '{title}': {e}")
 
