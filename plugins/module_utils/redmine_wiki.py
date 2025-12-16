@@ -76,12 +76,12 @@ def _normalize_title_key(title: str) -> str:
 def _filename_for_title(title: str, extension: str = "md") -> str:
     """Return the filename to write for a given wiki title.
 
-    Special-case the main wiki page (title 'wiki') to map to README.<ext>
+    Special-case the main wiki page (title 'wiki') to map to index.<ext>
     so repositories that consume the mirrored pages (e.g., GitHub) get
-    a README as the project landing page.
+    a index as the project landing page.
     """
     if title and title.strip().lower() == "wiki":
-        return f"README.{extension}"
+        return f"index.{extension}"
     return _default_filename(title, extension)
 
 
@@ -150,7 +150,7 @@ def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, s
         if not fname:
             fname = _default_filename(target, extension=extension)
 
-        if not fname.lower().startswith(f"readme.{extension}"):
+        if not fname.lower().startswith(f"index.{extension}"):
             fname = fname.lower()
 
         return f"[{label}]({fname})"
@@ -170,7 +170,7 @@ def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, s
             or mapping.get(quote(title, safe=''))
             or _default_filename(title, extension=extension)
         )
-        if not fname.lower().startswith(f"readme.{extension}"):
+        if not fname.lower().startswith(f"index.{extension}"):
             fname = fname.lower()
         return f"[{label}]({fname})"
 

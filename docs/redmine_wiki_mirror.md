@@ -93,4 +93,4 @@ The module is suitable for exporting project documentation from Redmine into a r
 ## Link rewriting behavior
 
 - When `rewrite_links` is enabled the module will rewrite internal Redmine wiki links to point at the mirrored filenames. This covers full Redmine wiki URLs (absolute and site-relative) and wiki-style links like `[[Title]]` or `[[Title|Label]]`.
-- The project's main wiki page (title `wiki`) is mapped to `README.<filename_extension>`, so links targeting the main wiki will refer to the local README after mirroring.
+- The project's main wiki page (title `wiki`) is mapped to `index.<filename_extension>`, so links targeting the main wiki will refer to the local INDEX after mirroring.

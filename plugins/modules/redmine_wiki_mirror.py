@@ -49,7 +49,7 @@ options:
     description:
       - Rewrite internal Redmine wiki links and wiki-style links to local filenames.
       - When true, wiki URLs and `[[Page]]` links are converted to Markdown links pointing
-        at the mirrored filenames (the main wiki page `wiki` is written as README.md).
+        at the mirrored filenames (the main wiki page `wiki` is written as index.md).
     type: bool
     default: false
 """
