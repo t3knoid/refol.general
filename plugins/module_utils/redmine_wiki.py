@@ -112,8 +112,34 @@ def _ensure_front_matter(content: str, page_title: str) -> str:
         else:
             main_title = page_title or ""
 
-    # Escape double quotes in title for safe YAML quoting
-    safe_title = main_title.replace('"', '\\"')
+    # Sanitize and escape title for safe YAML quoting
+    def _sanitize_title_for_front_matter(t: str) -> str:
+        if t is None:
+            return ""
+        s = t.strip()
+        # Remove any leading Markdown header markers (e.g. '# Title')
+        s = re.sub(r"^#+\s*", "", s)
+        # Remove YAML front-matter delimiters if present
+        s = s.replace("---", "")
+        # Remove common Unicode emoji ranges (broad coverage)
+        emoji_re = re.compile(
+            "[\U0001F300-\U0001FAFF\u2600-\u26FF\u2700-\u27BF]+",
+            flags=re.UNICODE,
+        )
+        s = emoji_re.sub("", s)
+        # Remove common ASCII emoticons like :-) :( :D etc.
+        s = re.sub(r"[:;=8][\-~]?[)DdpP\(\]/\\]", "", s)
+        # Remove inline code markers and emphasis markers (but keep underscores)
+        s = s.replace('`', '')
+        s = s.replace('*', '')
+        # Remove non-printable/control characters
+        s = ''.join(ch for ch in s if ch.isprintable())
+        # Collapse whitespace
+        s = re.sub(r"\s+", " ", s)
+        return s.strip()
+
+    safe_title_raw = _sanitize_title_for_front_matter(main_title or page_title or "")
+    safe_title = safe_title_raw.replace('"', '\\"')
 
     front_matter = f"---\ntitle: \"{safe_title}\"\n---\n\n"
 
