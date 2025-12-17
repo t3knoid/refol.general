@@ -240,6 +240,37 @@ def _rewrite_content(content: str, project: str, base: str, mapping: Dict[str, s
     return content
 
 
+def _wrap_fenced_code_blocks_with_raw(content: str) -> str:
+    """Wrap fenced code blocks with Jekyll raw tags to avoid Liquid parsing.
+
+    This inserts a `{% raw %}` immediately after the opening fence and a
+    `{% endraw %}` immediately before the closing fence for each fenced
+    code block (```) found in the content. Blocks already containing raw
+    tags are left unchanged.
+    """
+    if content is None:
+        return content
+
+    # Match fenced code blocks: opening fence (``` optionally with language),
+    # code, then closing fence. Use DOTALL so code can contain newlines.
+    pattern = re.compile(r"(^```[^\n]*\n)(.*?)(\n```)", re.DOTALL | re.MULTILINE)
+
+    def _repl(m):
+        full = m.group(0)
+        open_fence = m.group(1)
+        code = m.group(2)
+        close_fence = m.group(3)
+
+        # If the matched block already contains raw tags, don't double-wrap.
+        if "{% raw %}" in full or "{% endraw %}" in full:
+            return full
+
+        # Wrap the entire fenced block with raw tags (outside the backticks).
+        return f"{{% raw %}}\n{open_fence}{code}{close_fence}\n{{% endraw %}}"
+
+    return pattern.sub(_repl, content)
+
+
 def mirror_redmine_wiki(
     module,
     *,
@@ -305,6 +336,11 @@ def mirror_redmine_wiki(
                 content = _rewrite_content(content, project, base, title_to_filename, extension=filename_extension)
             except Exception as e:
                 _debug(debug_enabled, log, f"Link rewrite failed for '{title}': {e}")
+        # Wrap fenced code blocks with Jekyll raw tags to avoid Liquid parsing errors
+        try:
+            content = _wrap_fenced_code_blocks_with_raw(content)
+        except Exception as e:
+            _debug(debug_enabled, log, f"Code block wrapping failed for '{title}': {e}")
         # Ensure the generated markdown has a YAML front matter with the page title.
         final_content = _ensure_front_matter(content, title)
 
