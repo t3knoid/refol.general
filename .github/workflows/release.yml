@@ -1,0 +1,109 @@
+name: Release build artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: 'Source build tag (e.g. v1.2.3)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Determine source tag
+        id: determine
+        run: |
+          SRC="${{ github.event.inputs.source_tag }}"
+          echo "source_tag=$SRC" >> $GITHUB_OUTPUT
+
+      - name: Locate workflow run and artifact for source tag
+        id: fetch_artifact
+        run: |
+          set -euo pipefail
+          owner_repo="$GITHUB_REPOSITORY"
+          SRC="${{ steps.determine.outputs.source_tag }}"
+          ref_api="https://api.github.com/repos/$owner_repo/git/refs/tags/$SRC"
+          ref_resp=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$ref_api")
+          obj_type=$(echo "$ref_resp" | jq -r '.object.type')
+          obj_sha=$(echo "$ref_resp" | jq -r '.object.sha')
+          if [ "$obj_type" = "tag" ]; then
+            tag_obj=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/$owner_repo/git/tags/$obj_sha")
+            commit_sha=$(echo "$tag_obj" | jq -r '.object.sha')
+          else
+            commit_sha="$obj_sha"
+          fi
+          echo "commit_sha=$commit_sha" >> $GITHUB_OUTPUT
+
+          runs_api="https://api.github.com/repos/$owner_repo/actions/runs?per_page=100"
+          runs=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs_api")
+          run_id=$(echo "$runs" | jq -r --arg sha "$commit_sha" '.workflow_runs[] | select(.head_sha==$sha) | .id' | head -n1)
+          if [ -z "$run_id" ]; then
+            echo "No workflow run found for commit $commit_sha" >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> $GITHUB_OUTPUT
+
+          artifacts_api="https://api.github.com/repos/$owner_repo/actions/runs/$run_id/artifacts"
+          arts=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$artifacts_api")
+          artifact_id=$(echo "$arts" | jq -r '.artifacts[] | select(.name=="collection") | .id' | head -n1)
+          if [ -z "$artifact_id" ] || [ "$artifact_id" = "null" ]; then
+            echo "No 'collection' artifact found for run $run_id" >&2
+            exit 1
+          fi
+          echo "artifact_id=$artifact_id" >> $GITHUB_OUTPUT
+
+      - name: Download and extract artifact
+        run: |
+          set -euo pipefail
+          mkdir -p dist /tmp/artifact
+          owner_repo="$GITHUB_REPOSITORY"
+          artifact_id="${{ steps.fetch_artifact.outputs.artifact_id }}"
+          curl -L -H "Authorization: Bearer $GITHUB_TOKEN" -o /tmp/artifact.zip "https://api.github.com/repos/$owner_repo/actions/artifacts/$artifact_id/zip"
+          unzip -o /tmp/artifact.zip -d /tmp/artifact
+          tarfile=$(find /tmp/artifact -type f -name 'refol-general-*.tar.gz' | head -n1)
+          if [ -z "$tarfile" ]; then
+            echo "No refol-general-*.tar.gz found inside artifact" >&2
+            exit 1
+          fi
+          mv "$tarfile" dist/
+
+      - name: Determine build version from artifact
+        id: identify_version
+        run: |
+          set -euo pipefail
+          file=$(ls dist/refol-general-*.tar.gz | head -n1)
+          tmpd=/tmp/extracted
+          rm -rf "$tmpd" && mkdir -p "$tmpd"
+          tar -xzf "$file" -C "$tmpd"
+          # find top-level extracted directory containing galaxy.yml
+          pkgdir=$(find "$tmpd" -maxdepth 2 -type f -name galaxy.yml -printf '%h\n' | head -n1)
+          if [ -z "$pkgdir" ]; then
+            echo "galaxy.yml not found inside $file" >&2
+            exit 1
+          fi
+          # extract version key (handles quoted or unquoted values)
+          version_line=$(grep -E '^version:' "$pkgdir/galaxy.yml" | head -n1 || true)
+          if [ -z "$version_line" ]; then
+            echo "version key not found in $pkgdir/galaxy.yml" >&2
+            exit 1
+          fi
+          VERSION=$(echo "$version_line" | sed -E 's/^version:[[:space:]]*"?\'?([^"'"']+)"?\'?$/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Failed to parse version from line: $version_line" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Identified build version: $VERSION"
+
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.determine.outputs.source_tag }}
+          name: "Release v${{ steps.identify_version.outputs.version }}"
+          body: "Release built from galaxy.yml version ${{ steps.identify_version.outputs.version }} (artifact from tag ${{ steps.determine.outputs.source_tag }})"
+          files: ./dist/**
