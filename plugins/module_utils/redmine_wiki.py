@@ -365,7 +365,7 @@ def mirror_redmine_wiki(
     # Delete stale files
     if delete_stale:
         for f in outdir.glob(f"*.{filename_extension}"):
-            if f.name not in seen_filenames:
+            if f.name not in seen_filenames and f.name != "README.md":
                 _debug(debug_enabled, log, f"Deleting stale file {f}")
                 if not module.check_mode:
                     f.unlink()
