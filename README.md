@@ -237,7 +237,7 @@ ansible-playbook --syntax-check tests/test_redmine_wiki_mirror.yml
 Run the test using an installed collection (no env overrides needed if your `ansible.cfg` has the correct `collections_paths`):
 
 ```bash
-export REDMINE_URL="https://homelab.refol.us"
+export REDMINE_URL="https://lab.refol.us"
 export REDMINE_PROJECT="home-lab"
 export REDMINE_API_KEY="<your_api_key>"
 ansible-playbook tests/test_redmine_wiki_mirror.yml
@@ -248,7 +248,7 @@ If you're developing in-tree and want to run the test against the local `plugins
 ```bash
 export ANSIBLE_LIBRARY=./plugins/modules
 export ANSIBLE_MODULE_UTILS=./plugins/module_utils
-export REDMINE_URL="https://homelab.refol.us"
+export REDMINE_URL="https://lab.refol.us"
 export REDMINE_PROJECT="home-lab"
 export REDMINE_API_KEY="<your_api_key>"
 ansible-playbook tests/test_redmine_wiki_mirror.yml
