@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.compute_next.outputs.version }}
+      version: ${{ steps.tag.outputs.tag }}
 
     steps:
       - name: Checkout repository
@@ -27,37 +27,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install ansible
 
-      - name: Compute next version and tag
-        id: compute_next
-        run: |
-          git fetch --tags
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -n "$latest_tag" ]; then
-            base=${latest_tag#v}
-          else
-            base=$(python3 -c "import yaml;print(yaml.safe_load(open('galaxy.yml'))['version'])")
-          fi
-          IFS='.' read -r major minor patch <<< "${base}"
-          major=${major:-0}
-          minor=${minor:-0}
-          patch=${patch:-0}
-          patch=$((patch + 1))
-          VERSION="${major}.${minor}.${patch}"
-          TAG="${VERSION}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for tagging
 
+      - name: Generate build tag
+        id: tag
+        run: |
+          DATE=$(date +'%Y%m%d')
+          COUNT=$(git tag --list "build-$DATE.*" | wc -l)
+          TAG="build-$DATE.$((COUNT+1))"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Create Git tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.compute_next.outputs.tag }}" -m "Release ${{ steps.compute_next.outputs.tag }}"
-          git push origin "${{ steps.compute_next.outputs.tag }}"
+          git tag ${{ steps.tag.outputs.tag }}
+          git push origin ${{ steps.tag.outputs.tag }}
 
       - name: Checkout source at tag
         uses: actions/checkout@v3
         with:
-          ref: ${{ steps.compute_next.outputs.tag }}
+          ref:  ${{ steps.tag.outputs.tag }}
 
       - name: Build Ansible Collection
         run: ansible-galaxy collection build
@@ -66,4 +57,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: collection
-          path: refol-general-${{ steps.compute_next.outputs.version }}.tar.gz
+          path: refol-general-${{ steps.tag.outputs.tag }}.tar.gz
