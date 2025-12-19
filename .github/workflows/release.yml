@@ -1,4 +1,4 @@
-name: Release build artifact
+name: Release refol.general Ansible Collection build artifact
 
 on:
   workflow_dispatch:
