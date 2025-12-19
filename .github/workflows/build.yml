@@ -1,4 +1,4 @@
-name: Build and Release Ansible Collection
+name: Build refol.general Ansible Collection
 
 on:
   push:
