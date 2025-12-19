@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -53,6 +53,12 @@ jobs:
         with:
           ref:  ${{ steps.tag.outputs.tag }}
 
+      - name: Read version from galaxy.yml
+        id: get_version
+        run: |
+          VERSION=$(python3 -c "import yaml; print(yaml.safe_load(open('galaxy.yml'))['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build Ansible Collection
         run: ansible-galaxy collection build
 
@@ -60,4 +66,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: collection
-          path: refol-general-${{ steps.tag.outputs.tag }}.tar.gz
+          path: refol-general-${{ steps.get_version.outputs.version }}.tar.gz
