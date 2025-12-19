@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
@@ -22,6 +23,9 @@ jobs:
           echo "source_tag=$SRC" >> $GITHUB_OUTPUT
 
       - name: Locate workflow run and artifact for source tag
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         id: fetch_artifact
         run: |
           set -euo pipefail
@@ -58,6 +62,8 @@ jobs:
           echo "artifact_id=$artifact_id" >> $GITHUB_OUTPUT
 
       - name: Download and extract artifact
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p dist /tmp/artifact
