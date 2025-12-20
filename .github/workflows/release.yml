@@ -47,7 +47,7 @@ jobs:
           runs=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs_api")
           echo "$runs" | jq '.workflow_runs[] | {id, name, head_sha, event, status, conclusion}'
           run_id=$(echo "$runs" \
-                | jq -r --arg sha "$commit_sha" --arg name "Build" \
+                | jq -r --arg sha "$commit_sha" --arg name "Build refol.general Ansible Collection" \
                 '.workflow_runs[]
                 | select(.head_sha==$sha and .name==$name)
                 | .id' \
