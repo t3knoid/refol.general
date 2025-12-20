@@ -92,30 +92,24 @@ jobs:
           tmpd=/tmp/extracted
           rm -rf "$tmpd" && mkdir -p "$tmpd"
           tar -xzf "$file" -C "$tmpd"
-          # find top-level extracted directory containing galaxy.yml
-          pkgdir=$(find "$tmpd" -maxdepth 2 -type f -name galaxy.yml -printf '%h\n' | head -n1)
-          if [ -z "$pkgdir" ]; then
-            echo "galaxy.yml not found inside $file" >&2
+          # find MANIFEST.json produced by ansible-galaxy collection build
+          manifest=$(find "$tmpd" -type f -name 'MANIFEST.json' | head -n1)
+          if [ -z "$manifest" ]; then
+            echo "MANIFEST.json not found inside $file" >&2
             exit 1
           fi
-          # extract version key (handles quoted or unquoted values)
-          version_line=$(grep -E '^version:' "$pkgdir/galaxy.yml" | head -n1 || true)
-          if [ -z "$version_line" ]; then
-            echo "version key not found in $pkgdir/galaxy.yml" >&2
-            exit 1
-          fi
-          VERSION=$(echo "$version_line" | sed -E 's/^version:[[:space:]]*"?\'?([^"'"']+)"?\'?$/\1/')
+          VERSION=$(jq -r '.collection_info.version // empty' "$manifest")
           if [ -z "$VERSION" ]; then
-            echo "Failed to parse version from line: $version_line" >&2
+            echo "Failed to read collection_info.version from $manifest" >&2
             exit 1
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Identified build version: $VERSION"
+          echo "Identified build version from MANIFEST.json: $VERSION"
 
       - name: Create GitHub Release and upload asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.determine.outputs.source_tag }}
-          name: "Release v${{ steps.identify_version.outputs.version }}"
-          body: "Release built from galaxy.yml version ${{ steps.identify_version.outputs.version }} (artifact from tag ${{ steps.determine.outputs.source_tag }})"
+          name: "Release ${{ steps.identify_version.outputs.version }}"
+          body: "Release built from MANIFEST.json version ${{ steps.identify_version.outputs.version }} (artifact from tag ${{ steps.determine.outputs.source_tag }})"
           files: ./dist/**
