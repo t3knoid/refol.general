@@ -45,7 +45,12 @@ jobs:
 
           runs_api="https://api.github.com/repos/$owner_repo/actions/runs?per_page=100"
           runs=$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs_api")
-          run_id=$(echo "$runs" | jq -r --arg sha "$commit_sha" '.workflow_runs[] | select(.head_sha==$sha) | .id' | head -n1)
+          run_id=$(echo "$runs" \
+                | jq -r --arg sha "$commit_sha" --arg name "Build" \
+                '.workflow_runs[]
+                | select(.head_sha==$sha and .name==$name)
+                | .id' \
+                | head -n1)
           if [ -z "$run_id" ]; then
             echo "No workflow run found for commit $commit_sha" >&2
             exit 1
