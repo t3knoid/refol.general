@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.redmine_wiki import mirror_redmine_wiki
-
+from ansible_collections.refol.general.plugins.module_utils.redmine_wiki import mirror_redmine_wiki
 
 DOCUMENTATION = r"""
 ---
