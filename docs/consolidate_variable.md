@@ -121,3 +121,10 @@ Then pass them to the module:
 * Recursive Jinja2 rendering resolves expressions using both role and inventory variables.
 * This module is ideal for consolidating list-type variables like `rproxy_setup_sites` across multiple inventories.
 
+## Testing 
+
+Run the following smoke test to validate the consolidate_variable module.
+
+```bash
+ansible-playbook  ./tests/test_consolidate_variable.yml
+```

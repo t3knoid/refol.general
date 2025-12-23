@@ -94,3 +94,41 @@ The module is suitable for exporting project documentation from Redmine into a r
 
 - When `rewrite_links` is enabled the module will rewrite internal Redmine wiki links to point at the mirrored filenames. This covers full Redmine wiki URLs (absolute and site-relative) and wiki-style links like `[[Title]]` or `[[Title|Label]]`.
 - The project's main wiki page (title `wiki`) is mapped to `index.<filename_extension>`, so links targeting the main wiki will refer to the local INDEX after mirroring.
+
+## Testing
+
+Run the included smoke playbook to verify the module. The test playbook is `tests/test_redmine_wiki_mirror.yml` and writes output to `tests/tmp_redmine_wiki` by default.
+
+**Quick syntax check (no network calls)**
+
+```bash
+ansible-playbook --syntax-check tests/test_redmine_wiki_mirror.yml
+```
+
+Run the test using an installed collection (no env overrides needed if your `ansible.cfg` has the correct `collections_paths`):
+
+```bash
+export REDMINE_URL="https://lab.refol.us"
+export REDMINE_PROJECT="home-lab"
+export REDMINE_API_KEY="<your_api_key>"
+ansible-playbook tests/test_redmine_wiki_mirror.yml
+```
+
+If you're developing in-tree and want to run the test against the local `plugins/` folders (without installing the collection), either set these environment variables prior to running the playbook:
+
+```bash
+export ANSIBLE_LIBRARY=./plugins/modules
+export ANSIBLE_MODULE_UTILS=./plugins/module_utils
+```
+
+Or add the local plugin paths to `ansible.cfg` in the repo root (see notes above) so Ansible discovers them automatically.
+
+**Cleanup after running the test**
+
+To remove the temporary files written by the smoke test:
+
+```bash
+rm -rf tests/tmp_redmine_wiki
+```
+
+Or remove only the files that were synced in the last run by inspecting `mirror_result.synced_pages` in the playbook output and deleting those paths.
