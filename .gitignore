@@ -24,7 +24,7 @@ venv/
 
 # Test run artifacts
 .pytest_cache/
-tests/__pycache__/
+tests/**
 
 # Logs and temporary files
 *.log
